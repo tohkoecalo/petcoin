@@ -16,17 +16,27 @@ class Block {
         this.transaction = transaction;
         this.hash = this.calculateHash();
         this.previousHash = previousHash;
+        this.nonce = 0;
     }
 
     calculateHash() {
-        return SHA256(SHA256(this.index).toString() + SHA256(this.timestampt).toString() 
-                + SHA256(JSON.stringify(this.transaction)).toString() + SHA256(this.hash).toString()).toString();
+        return SHA256(this.index + this.timestampt + JSON.stringify(this.transaction) + this.nonce).toString();
+    }
+
+    mineBlock(difficultyOffset) {
+        while (this.hash.substring(0, difficultyOffset) !== Array(difficultyOffset + 1).join("0")) {
+            this.nonce++;
+            this.hash = this.calculateHash();
+        }
+
+        console.log("Block " + this.index + " mined with hash: " + this.hash);
     }
 }
 
 class Chain {
     constructor() {
         this.chain = [this.createGenesisBlock()];
+        this.difficultyOffset = 2;
     }
 
     createGenesisBlock() {
@@ -38,17 +48,36 @@ class Chain {
     }
 
     addNewBlock(newBlock) {
-        let tmp = this.getLatestBlock().hash;
         newBlock.previousHash = this.getLatestBlock().hash;
-        newBlock.hash = newBlock.calculateHash();
+        newBlock.mineBlock(this.difficultyOffset);
         this.chain.push(newBlock);
+    }
+
+    isChainValid() {
+        for (let i = 1; i < this.chain.length; i++) {
+            const currentBlock = this.chain[i];
+            const previousBlock = this.chain[i - 1];
+
+            let tmp = currentBlock.calculateHash();
+            if (currentBlock.hash !== tmp) {
+                return false;
+            }
+
+            if (currentBlock.previousHash !== previousBlock.hash) {
+                return false;
+            }
+
+            return true;
+        }
     }
 }
 
 let petCoin = new Chain();
 let firstTransation = new Transaction("Leva", "Sasha", 100);
 let secondTransaction = new Transaction("Sasha", "Leva", 50);
-petCoin.addNewBlock(new Block(petCoin.chain.length, new Date(), firstTransation));
-petCoin.addNewBlock(new Block(petCoin.chain.length, new Date(), secondTransaction));
 
-console.log(JSON.stringify(petCoin, null, 4));
+console.log("Mining block " + petCoin.chain.length + "...");
+petCoin.addNewBlock(new Block(petCoin.chain.length, new Date(), firstTransation));
+
+console.log("Mining block " + petCoin.chain.length + "...");
+petCoin.addNewBlock(new Block(petCoin.chain.length, new Date(), secondTransaction));
