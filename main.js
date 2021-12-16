@@ -2,7 +2,6 @@ const SHA256 = require('crypto-js/sha256');
 
 class Transaction {
     constructor (senderWallet, recieveWallet, amount) {
-        this.timestampt = new Date();
         this.senderWallet = senderWallet;
         this.recieveWallet = recieveWallet;
         this.amount = amount;
@@ -10,10 +9,9 @@ class Transaction {
 }
 
 class Block {
-    constructor(index, timestampt, transaction, previousHash = '') {
-        this.index = index;
+    constructor(timestampt, transactions, previousHash = '') {
         this.timestampt = timestampt;
-        this.transaction = transaction;
+        this.transactions = transactions;
         this.hash = this.calculateHash();
         this.previousHash = previousHash;
         this.nonce = 0;
@@ -37,20 +35,50 @@ class Chain {
     constructor() {
         this.chain = [this.createGenesisBlock()];
         this.difficultyOffset = 2;
+        this.pandingTransactions = [];
+        this.reward = 10;
     }
 
     createGenesisBlock() {
-        return new Block(0, new Date(), "I am genesis block", "none");
+        return new Block(new Date(), "I am genesis block", "none");
     }
 
     getLatestBlock() {
         return this.chain[this.chain.length - 1];
     }
 
-    addNewBlock(newBlock) {
-        newBlock.previousHash = this.getLatestBlock().hash;
+    minePandingTransactions(miningRewardAddress) {
+        let newBlock = new Block(new Date, this.pandingTransactions)
         newBlock.mineBlock(this.difficultyOffset);
+
+        console.log("Block mined!");
         this.chain.push(newBlock);
+
+        this.pandingTransactions = [
+            new Transaction(null, miningRewardAddress, this.reward)
+        ]
+    }
+
+    createTransaction(transaction) {
+        this.pandingTransactions.push(transaction);
+    }
+
+    getAddressBalance(address) {
+        let balance = 0;
+
+        for (const block of this.chain) {
+            for (const trans of block.transactions) {
+                if (address === trans.recieveWallet) {
+                    balance += trans.amount;
+                }
+
+                if (address === trans.senderWallet) {
+                    balance -= trans.amount;
+                }
+            }
+        }
+
+        return balance;
     }
 
     isChainValid() {
@@ -74,10 +102,23 @@ class Chain {
 
 let petCoin = new Chain();
 let firstTransation = new Transaction("Leva", "Sasha", 100);
+petCoin.createTransaction(firstTransation);
 let secondTransaction = new Transaction("Sasha", "Leva", 50);
+petCoin.createTransaction(secondTransaction);
 
-console.log("Mining block " + petCoin.chain.length + "...");
-petCoin.addNewBlock(new Block(petCoin.chain.length, new Date(), firstTransation));
+console.log("Mining started....")
+petCoin.minePandingTransactions("myself");
 
-console.log("Mining block " + petCoin.chain.length + "...");
-petCoin.addNewBlock(new Block(petCoin.chain.length, new Date(), secondTransaction));
+console.log("myself balance is", petCoin.getAddressBalance("myself"));
+
+let thirdTransation = new Transaction("Leva", "Sasha", 100);
+petCoin.createTransaction(thirdTransation);
+let fourthTransaction = new Transaction("Sasha", "Leva", 50);
+petCoin.createTransaction(fourthTransaction);
+
+petCoin.minePandingTransactions("myself");
+console.log("myself balance is", petCoin.getAddressBalance("myself"));
+console.log("Leva balance is", petCoin.getAddressBalance("Leva"));
+console.log("Sasha balance is", petCoin.getAddressBalance("Sasha"));
+
+
