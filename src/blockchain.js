@@ -1,10 +1,36 @@
 const SHA256 = require('crypto-js/sha256');
+const EC = require('elliptic').ec;
+const curve = new EC('secp256k1');
 
 class Transaction {
     constructor (senderWallet, recieveWallet, amount) {
         this.senderWallet = senderWallet;
         this.recieveWallet = recieveWallet;
         this.amount = amount;
+    }
+
+    calculateHash() {
+        return SHA256(this.senderWallet + this.recieveWallet + this.amount).toString();
+    }
+
+    sign(keyPair) {
+        if (keyPair.getPublic('hex') !== this.senderWallet) {
+            throw new Error("Public key is not equals senderWallet");
+        }
+        const hash = this.calculateHash();
+        const sign = keyPair.sign(hash, 'base64');
+        this.signature = sign.toDER('hex');
+    }
+
+    isValid() {
+        if (this.senderWallet === null) return true;
+
+        if (!this.signature || this.signature.length === 0) {
+            throw new Error("Transaction does not have a signature");
+        }
+
+        const pablicKey = curve.keyFromPublic(this.senderWallet, 'hex');
+        return pablicKey.verify(this.calculateHash(), this.signature);
     }
 }
 
@@ -27,7 +53,18 @@ class Block {
             this.hash = this.calculateHash();
         }
 
-        console.log("Block " + this.index + " mined with hash: " + this.hash);
+        console.log("Block mined with hash: " + this.hash);
+        console.log("Block: " + JSON.stringify(this));
+    }
+
+    isInvalidBlock() {
+        for (let tx of this.transactions) {
+            if (!tx.isValid()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -48,7 +85,9 @@ class Chain {
     }
 
     minePandingTransactions(miningRewardAddress) {
-        let newBlock = new Block(new Date, this.pandingTransactions)
+        let rewardTransaction = new Transaction(null, miningRewardAddress, this.reward);
+        this.pandingTransactions.push(rewardTransaction);
+        let newBlock = new Block(new Date(), this.pandingTransactions, this.getLatestBlock().hash)
         newBlock.mineBlock(this.difficultyOffset);
 
         console.log("Block mined!");
@@ -59,7 +98,15 @@ class Chain {
         ]
     }
 
-    createTransaction(transaction) {
+    addTransaction(transaction) {
+        if (!transaction.senderWallet || !transaction.recieveWallet) {
+            throw new Error("Transaction does not have sender or reciever");
+        }
+
+        if (!transaction.isValid()){
+            throw new Error("Transaction is not valid");
+        }
+
         this.pandingTransactions.push(transaction);
     }
 
@@ -67,6 +114,7 @@ class Chain {
         let balance = 0;
 
         for (const block of this.chain) {
+            console.log(block);
             for (const trans of block.transactions) {
                 if (address === trans.recieveWallet) {
                     balance += trans.amount;
@@ -86,12 +134,19 @@ class Chain {
             const currentBlock = this.chain[i];
             const previousBlock = this.chain[i - 1];
 
+            if (currentBlock.isInvalidBlock()) {
+                console.log("invalid block");
+                return false;
+            }
+        
             let tmp = currentBlock.calculateHash();
             if (currentBlock.hash !== tmp) {
+                console.log("invalid hash");
                 return false;
             }
 
             if (currentBlock.previousHash !== previousBlock.hash) {
+                console.log("invalid prev hash");
                 return false;
             }
 
@@ -100,25 +155,5 @@ class Chain {
     }
 }
 
-let petCoin = new Chain();
-let firstTransation = new Transaction("Leva", "Sasha", 100);
-petCoin.createTransaction(firstTransation);
-let secondTransaction = new Transaction("Sasha", "Leva", 50);
-petCoin.createTransaction(secondTransaction);
-
-console.log("Mining started....")
-petCoin.minePandingTransactions("myself");
-
-console.log("myself balance is", petCoin.getAddressBalance("myself"));
-
-let thirdTransation = new Transaction("Leva", "Sasha", 100);
-petCoin.createTransaction(thirdTransation);
-let fourthTransaction = new Transaction("Sasha", "Leva", 50);
-petCoin.createTransaction(fourthTransaction);
-
-petCoin.minePandingTransactions("myself");
-console.log("myself balance is", petCoin.getAddressBalance("myself"));
-console.log("Leva balance is", petCoin.getAddressBalance("Leva"));
-console.log("Sasha balance is", petCoin.getAddressBalance("Sasha"));
-
-
+module.exports.Chain = Chain;
+module.exports.Transaction = Transaction;
