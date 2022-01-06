@@ -1,0 +1,26 @@
+{
+  "name": "petcoin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "crypto-js": "^4.1.1",
+    "elliptic": "^6.5.4",
+    "express": "^4.17.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tohkoecalo/petcoin.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tohkoecalo/petcoin/issues"
+  },
+  "homepage": "https://github.com/tohkoecalo/petcoin#readme"
+}
